@@ -10,6 +10,11 @@ export interface IProduct extends Document {
   description: string;
   inStock: boolean;
   maxPerOrder: number;
+  isFeatured: boolean;
+  isPopular: boolean;
+  options?: string[];
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const ProductSchema = new Schema<IProduct>(
@@ -23,6 +28,9 @@ const ProductSchema = new Schema<IProduct>(
     description: { type: String, default: '' },
     inStock: { type: Boolean, default: true, index: true },
     maxPerOrder: { type: Number, default: 12 },
+    isFeatured: { type: Boolean, default: false },
+    isPopular: { type: Boolean, default: false },
+    options: [{ type: String }],
   },
   { timestamps: true }
 );
