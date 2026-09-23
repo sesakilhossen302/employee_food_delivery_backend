@@ -22,7 +22,7 @@ const StoreSettingsSchema = new Schema<IStoreSettings>(
   {
     storeName: { type: String, default: 'Little Arrows Delivery App' },
     storePhone: { type: String, default: '+1 (555) 019-2834' },
-    storeEmail: { type: String, default: 'orders@dakotagasstore.com' },
+    storeEmail: { type: String, default: 'orders@littlearrowsdelivery.com' },
     storeAddress: { type: String, default: '123 Highway 10, Local Town' },
     enableStorePickup: { type: Boolean, default: true },
     enablePayAtDoor: { type: Boolean, default: true },

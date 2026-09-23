@@ -18,7 +18,7 @@ export const getHomeScreenData = async (req: Request, res: Response): Promise<vo
       success: true,
       data: {
         storeInfo: {
-          name: settings?.storeName || 'Dakota Gas Station & Convenience Store',
+          name: settings?.storeName || 'Little Arrows Delivery App',
           address: settings?.storeAddress || '123 Highway 10, Local Town',
           phone: settings?.storePhone || '+1 (555) 019-2834',
           isOpen: true,
