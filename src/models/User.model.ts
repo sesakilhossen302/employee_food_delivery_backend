@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose';
+﻿import mongoose, { Schema, Document } from 'mongoose';
 
 export type UserRole = 'customer' | 'driver' | 'admin' | 'staff';
 
@@ -9,6 +9,8 @@ export interface IUser extends Document {
   password?: string;
   role: UserRole;
   isGuest?: boolean;
+  address?: string;
+  profileImage?: string;
   savedAddresses?: Array<{
     title: string;
     address: string;
@@ -38,6 +40,8 @@ const UserSchema = new Schema<IUser>(
       default: 'customer',
     },
     isGuest: { type: Boolean, default: false },
+    address: { type: String, default: '' },
+    profileImage: { type: String, default: '' },
     savedAddresses: [
       {
         title: { type: String },

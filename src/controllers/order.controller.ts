@@ -1,5 +1,6 @@
-import { Request, Response } from 'express';
+﻿import { Request, Response } from 'express';
 import { Order } from '../models/Order.model.js';
+import { Notification } from '../models/Notification.model.js';
 import { calculateDeliveryFee } from '../services/delivery.service.js';
 import { generateOrderPackingSlipPDF } from '../services/pdf.service.js';
 
@@ -7,9 +8,31 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
   try {
     const { customer, fulfillmentType, items, tip, paymentMethod } = req.body;
 
-    const subtotal = items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
+    const normalizedCustomer = {
+      name: customer?.name || 'Customer',
+      phone: customer?.phone || '+1 (555) 000-0000',
+      email: customer?.email,
+      deliveryAddress: customer?.deliveryAddress || customer?.address || (fulfillmentType === 'pickup' ? 'Store Pickup' : 'Local Address'),
+      deliveryInstructions: customer?.deliveryInstructions || customer?.instructions || '',
+      distanceKm: customer?.distanceKm || 3,
+    };
+
+    const normalizedItems = (items || []).map((item: any, idx: number) => {
+      const price = +(item.price || 0);
+      const qty = +(item.quantity || item.qty || 1);
+      return {
+        productId: item.productId || item.id || item._id || `item-${idx + 1}`,
+        name: item.name || 'Store Item',
+        price,
+        quantity: qty,
+        sizeOrOption: item.sizeOrOption || item.unit || '',
+        totalPrice: +(item.totalPrice || price * qty).toFixed(2),
+      };
+    });
+
+    const subtotal = normalizedItems.reduce((sum: number, item: any) => sum + item.totalPrice, 0);
     const taxes = +(subtotal * 0.085).toFixed(2);
-    const distanceKm = customer.distanceKm || 3;
+    const distanceKm = normalizedCustomer.distanceKm || 3;
     const deliveryFee = fulfillmentType === 'delivery' ? await calculateDeliveryFee(distanceKm, subtotal) : 0;
     const tipAmount = tip || 0;
     const total = +(subtotal + taxes + deliveryFee + tipAmount).toFixed(2);
@@ -18,23 +41,39 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
 
     const order = await Order.create({
       orderNumber,
-      customer,
-      fulfillmentType,
-      items,
+      customer: normalizedCustomer,
+      fulfillmentType: fulfillmentType || 'delivery',
+      items: normalizedItems,
       subtotal,
       taxes,
       deliveryFee,
       tip: tipAmount,
       total,
-      paymentMethod: paymentMethod || 'cash_on_delivery',
+      paymentMethod: paymentMethod || (fulfillmentType === 'delivery' ? 'cash_on_delivery' : 'cash_at_pickup'),
       paymentStatus: 'unpaid',
       status: 'received',
     });
 
-    // Realtime notification
+    // Create persistent notification
+    try {
+      await Notification.create({
+        title: 'Order Placed Successfully',
+        message: `Order ${orderNumber} ($${total}) is received by Little Arrows Store.`,
+        category: 'order',
+        orderId: order._id,
+      });
+    } catch (e) {
+      console.warn('Notification create warning:', e);
+    }
+
+    // Realtime notification via Socket.io
     const io = (req as any).io;
     if (io) {
       io.emit('new_order', order);
+      io.emit('notification', {
+        title: 'Order Placed Successfully',
+        message: `Order ${orderNumber} placed for $${total}.`,
+      });
     }
 
     res.status(201).json({ success: true, data: order });
@@ -45,9 +84,10 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
 
 export const getOrders = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { status } = req.query;
+    const { status, customerPhone } = req.query;
     const filter: any = {};
     if (status) filter.status = status;
+    if (customerPhone) filter['customer.phone'] = customerPhone;
 
     const orders = await Order.find(filter).sort({ createdAt: -1 });
     res.json({ success: true, data: orders });
@@ -75,10 +115,27 @@ export const updateOrderStatus = async (req: Request, res: Response): Promise<vo
       return;
     }
 
+    // Persistent notification for status update
+    try {
+      const statusTitle = status === 'delivered' ? 'Order Delivered 🎉' : `Order ${status.replace(/_/g, ' ')}`;
+      await Notification.create({
+        title: statusTitle,
+        message: `Order ${order.orderNumber} is now ${status.replace(/_/g, ' ')}.`,
+        category: status === 'out_for_delivery' ? 'delivery' : 'order',
+        orderId: order._id,
+      });
+    } catch (e) {
+      console.warn('Status notification error:', e);
+    }
+
     const io = (req as any).io;
     if (io) {
       io.emit('order_status_updated', order);
       io.to(`order_${id}`).emit('order_status_updated', order);
+      io.emit('notification', {
+        title: `Order ${order.orderNumber} Status Updated`,
+        message: `Order is now ${status.replace(/_/g, ' ')}.`,
+      });
     }
 
     res.json({ success: true, data: order });
@@ -100,6 +157,22 @@ export const assignDriver = async (req: Request, res: Response): Promise<void> =
       },
       { new: true }
     );
+
+    if (!order) {
+      res.status(404).json({ success: false, message: 'Order not found' });
+      return;
+    }
+
+    try {
+      await Notification.create({
+        title: 'Driver Assigned',
+        message: `${driverName} (${driverPhone}) is assigned to deliver order ${order.orderNumber}.`,
+        category: 'delivery',
+        orderId: order._id,
+      });
+    } catch (e) {
+      console.warn('Assign driver notification error:', e);
+    }
 
     const io = (req as any).io;
     if (io) {

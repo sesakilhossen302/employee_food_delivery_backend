@@ -359,3 +359,45 @@ export const getSavedAddresses = async (req: AuthRequest, res: Response): Promis
     res.status(500).json({ success: false, message: error.message });
   }
 };
+// Update Current User Profile
+export const updateProfile = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id || req.body.userId;
+    const { name, phone, email, address, profileImage } = req.body;
+
+    let targetUser: any = null;
+    if (userId) {
+      targetUser = await User.findById(userId);
+    } else if (email) {
+      targetUser = await User.findOne({ email: email.toLowerCase() });
+    } else if (phone) {
+      targetUser = await User.findOne({ phone });
+    }
+
+    if (!targetUser) {
+      targetUser = await User.create({
+        name: name || 'Customer',
+        phone: phone || `+1${Date.now().toString().slice(-9)}`,
+        email: email?.toLowerCase(),
+        address: address || '',
+        profileImage: profileImage || '',
+        role: 'customer',
+      });
+    } else {
+      if (name) targetUser.name = name;
+      if (phone) targetUser.phone = phone;
+      if (email) targetUser.email = email.toLowerCase();
+      if (address !== undefined) targetUser.address = address;
+      if (profileImage !== undefined) targetUser.profileImage = profileImage;
+      await targetUser.save();
+    }
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: targetUser,
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
