@@ -1,5 +1,6 @@
 ﻿import { Request, Response } from 'express';
 import { Order } from '../models/Order.model.js';
+import { Product } from '../models/Product.model.js';
 import { Notification } from '../models/Notification.model.js';
 import { calculateDeliveryFee } from '../services/delivery.service.js';
 import { generateOrderPackingSlipPDF } from '../services/pdf.service.js';
@@ -17,18 +18,26 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       distanceKm: customer?.distanceKm || 3,
     };
 
-    const normalizedItems = (items || []).map((item: any, idx: number) => {
-      const price = +(item.price || 0);
-      const qty = +(item.quantity || item.qty || 1);
-      return {
-        productId: item.productId || item.id || item._id || `item-${idx + 1}`,
-        name: item.name || 'Store Item',
-        price,
-        quantity: qty,
-        sizeOrOption: item.sizeOrOption || item.unit || '',
-        totalPrice: +(item.totalPrice || price * qty).toFixed(2),
-      };
-    });
+    const normalizedItems = await Promise.all(
+      (items || []).map(async (item: any, idx: number) => {
+        const price = +(item.price || 0);
+        const qty = +(item.quantity || item.qty || 1);
+        let img = item.imageUrl || '';
+        if (!img && item.productId && item.productId.match(/^[0-9a-fA-F]{24}$/)) {
+          const p = await Product.findById(item.productId).catch(() => null);
+          if (p && p.imageUrl) img = p.imageUrl;
+        }
+        return {
+          productId: item.productId || item.id || item._id || `item-${idx + 1}`,
+          name: item.name || 'Store Item',
+          price,
+          quantity: qty,
+          sizeOrOption: item.sizeOrOption || item.unit || '',
+          totalPrice: +(item.totalPrice || price * qty).toFixed(2),
+          imageUrl: img,
+        };
+      })
+    );
 
     const subtotal = normalizedItems.reduce((sum: number, item: any) => sum + item.totalPrice, 0);
     const taxes = +(subtotal * 0.085).toFixed(2);
