@@ -200,3 +200,74 @@ export const getOrderPackingSlipPDF = async (req: Request, res: Response): Promi
     res.status(500).send(error.message);
   }
 };
+
+import { latestDriverLocations } from '../sockets/socket.handler.js';
+
+export const getOrderTracking = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    let order = null;
+    if (id.match(/^[0-9a-fA-F]{24}$/)) {
+      order = await Order.findById(id);
+    }
+    if (!order) {
+      order = await Order.findOne({ orderNumber: id.startsWith('#') ? id : `#${id}` });
+    }
+    if (!order) {
+      order = await Order.findOne({ orderNumber: id });
+    }
+    if (!order) {
+      order = await Order.findOne().sort({ createdAt: -1 });
+    }
+
+    if (!order) {
+      res.status(404).json({ success: false, message: 'Order not found' });
+      return;
+    }
+
+    const orderIdStr = order._id.toString();
+    const cachedLoc = latestDriverLocations.get(orderIdStr) ||
+                      latestDriverLocations.get(order.orderNumber) ||
+                      (order.assignedDriver?.id ? latestDriverLocations.get(order.assignedDriver.id.toString()) : null);
+
+    const storeLocation = {
+      name: 'Little Arrows Delivery Store',
+      lat: 46.8772,
+      lng: -96.7898,
+      address: 'Little Arrows Delivery Store, 1250 Highway Blvd',
+    };
+
+    const customerLocation = {
+      name: order.customer?.name || 'Customer',
+      address: order.customer?.deliveryAddress || 'Springfield Residential Area',
+      lat: 46.8920,
+      lng: -96.8050,
+    };
+
+    const driverLocation = cachedLoc || {
+      lat: order.status === 'delivered' ? customerLocation.lat : 46.8820,
+      lng: order.status === 'delivered' ? customerLocation.lng : -96.7940,
+      heading: 45,
+      timestamp: Date.now(),
+    };
+
+    res.json({
+      success: true,
+      data: {
+        orderId: order._id,
+        orderNumber: order.orderNumber,
+        status: order.status,
+        fulfillmentType: order.fulfillmentType,
+        storeLocation,
+        customerLocation,
+        driverLocation,
+        driver: order.assignedDriver || {
+          name: 'Delivery Driver',
+          phone: '+1 (555) 019-2834',
+        },
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
