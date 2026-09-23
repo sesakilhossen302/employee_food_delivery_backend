@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+﻿import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { ENV } from '../config/env.js';
 import { Category } from '../models/Category.model.js';
@@ -11,7 +11,7 @@ import { StoreSettings } from '../models/StoreSettings.model.js';
 const seed = async () => {
   try {
     await mongoose.connect(ENV.MONGO_URI);
-    console.log('🌱 Connected to MongoDB for Full Seeding...');
+    console.log('ðŸŒ± Connected to MongoDB for Full Seeding...');
 
     // Clear old collections
     await Promise.all([
@@ -64,7 +64,7 @@ const seed = async () => {
         ],
       }),
     ]);
-    console.log('✅ Users seeded (Admin, Driver, Customer)');
+    console.log('âœ… Users seeded (Admin, Driver, Customer)');
 
     // 2. Seed Banners / Promotions (Dakota Spec)
     await Banner.insertMany([
@@ -85,23 +85,23 @@ const seed = async () => {
         order: 2,
       },
     ]);
-    console.log('✅ Banners seeded');
+    console.log('âœ… Banners seeded');
 
     // 3. Seed Categories
     const categories = [
-      { name: 'Drinks & Pop', iconEmoji: '🥤', order: 1 },
-      { name: 'Energy Drinks', iconEmoji: '⚡', order: 2 },
-      { name: 'Snacks & Chips', iconEmoji: '🍟', order: 3 },
-      { name: 'Candy & Chocolate', iconEmoji: '🍫', order: 4 },
-      { name: 'Ice Cream', iconEmoji: '🍦', order: 5 },
-      { name: 'Automotive & Fluids', iconEmoji: '🚗', order: 6 },
-      { name: 'Ice & Coolers', iconEmoji: '🧊', order: 7 },
-      { name: 'Firewood & Camp', iconEmoji: '🪵', order: 8 },
-      { name: 'Grocery & Essentials', iconEmoji: '🛒', order: 9 },
-      { name: 'Seasonal Specials', iconEmoji: '🔥', order: 10 },
+      { name: 'Drinks & Pop', iconEmoji: 'ðŸ¥¤', order: 1 },
+      { name: 'Energy Drinks', iconEmoji: 'âš¡', order: 2 },
+      { name: 'Snacks & Chips', iconEmoji: 'ðŸŸ', order: 3 },
+      { name: 'Candy & Chocolate', iconEmoji: 'ðŸ«', order: 4 },
+      { name: 'Ice Cream', iconEmoji: 'ðŸ¦', order: 5 },
+      { name: 'Automotive & Fluids', iconEmoji: 'ðŸš—', order: 6 },
+      { name: 'Ice & Coolers', iconEmoji: 'ðŸ§Š', order: 7 },
+      { name: 'Firewood & Camp', iconEmoji: 'ðŸªµ', order: 8 },
+      { name: 'Grocery & Essentials', iconEmoji: 'ðŸ›’', order: 9 },
+      { name: 'Seasonal Specials', iconEmoji: 'ðŸ”¥', order: 10 },
     ];
     await Category.insertMany(categories);
-    console.log('✅ Categories seeded');
+    console.log('âœ… Categories seeded');
 
     // 4. Seed Products
     const products = [
@@ -156,7 +156,7 @@ const seed = async () => {
         isPopular: false,
       },
       {
-        name: '-20°F Windshield Washer Fluid',
+        name: '-20Â°F Windshield Washer Fluid',
         category: 'Automotive & Fluids',
         price: 4.49,
         unit: '1 Gallon',
@@ -193,11 +193,11 @@ const seed = async () => {
       },
     ];
     await Product.insertMany(products);
-    console.log('✅ Products seeded');
+    console.log('âœ… Products seeded');
 
     // 5. Seed Store Settings (Distance tiers & fees)
     await StoreSettings.create({
-      storeName: 'Dakota Gas Station & Convenience Store',
+      storeName: 'Little Arrows Delivery App',
       storePhone: '+1 (555) 019-2834',
       storeEmail: 'orders@dakotagasstore.com',
       storeAddress: '123 Highway 10, Local Town',
@@ -213,7 +213,7 @@ const seed = async () => {
       ],
       allowedPostalCodes: ['58102', '58103', '58104', '58105', '58109'],
     });
-    console.log('✅ Store Settings & Delivery Tiers seeded');
+    console.log('âœ… Store Settings & Delivery Tiers seeded');
 
     // 6. Seed Sample Orders with 6-stage lifecycle
     await Order.create([
@@ -273,9 +273,9 @@ const seed = async () => {
         },
       },
     ]);
-    console.log('✅ Sample Orders seeded');
+    console.log('âœ… Sample Orders seeded');
 
-    console.log('🎉 FULL SEEDING COMPLETED SUCCESSFULLY!');
+    console.log('ðŸŽ‰ FULL SEEDING COMPLETED SUCCESSFULLY!');
     process.exit(0);
   } catch (error) {
     console.error('Seeding error:', error);

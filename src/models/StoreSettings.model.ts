@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose';
+﻿import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IStoreSettings extends Document {
   storeName: string;
@@ -20,7 +20,7 @@ export interface IStoreSettings extends Document {
 
 const StoreSettingsSchema = new Schema<IStoreSettings>(
   {
-    storeName: { type: String, default: 'Dakota Gas Station & Convenience Store' },
+    storeName: { type: String, default: 'Little Arrows Delivery App' },
     storePhone: { type: String, default: '+1 (555) 019-2834' },
     storeEmail: { type: String, default: 'orders@dakotagasstore.com' },
     storeAddress: { type: String, default: '123 Highway 10, Local Town' },

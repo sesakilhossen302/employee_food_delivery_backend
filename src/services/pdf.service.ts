@@ -1,4 +1,4 @@
-import PDFDocument from 'pdfkit';
+﻿import PDFDocument from 'pdfkit';
 import { IOrder } from '../models/Order.model.js';
 import { Response } from 'express';
 
@@ -14,11 +14,11 @@ export const generateOrderPackingSlipPDF = (order: IOrder, res: Response): void 
   doc
     .fontSize(18)
     .font('Helvetica-Bold')
-    .text('DAKOTA GAS STATION & CONVENIENCE STORE', { align: 'center' });
+    .text('LITTLE ARROWS CONVENIENCE & DELIVERY', { align: 'center' });
   doc
     .fontSize(10)
     .font('Helvetica')
-    .text('123 Highway 10, Local Town • Phone: +1 (555) 019-2834', { align: 'center' })
+    .text('123 Highway 10, Local Town â€¢ Phone: +1 (555) 019-2834', { align: 'center' })
     .moveDown(0.5);
 
   doc

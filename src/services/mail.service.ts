@@ -1,4 +1,4 @@
-import dotenv from 'dotenv';
+﻿import dotenv from 'dotenv';
 dotenv.config();
 import nodemailer, { Transporter } from 'nodemailer';
 import path from 'path';
@@ -29,7 +29,7 @@ export const getTransporter = (): Transporter => {
       },
     });
 
-    console.log(`ðŸ“§ Gmail SMTP Transporter initialized (${host}:${port}, User: ${user})`);
+    console.log(`Ã°Å¸â€œÂ§ Gmail SMTP Transporter initialized (${host}:${port}, User: ${user})`);
   }
   return transporter;
 };
@@ -40,8 +40,8 @@ export const sendOtpEmail = async (
   purpose: string = 'Account Verification'
 ): Promise<boolean> => {
   const mailer = getTransporter();
-  const storeName = process.env.STORE_NAME || 'Dakota Gas Station & Convenience Store';
-  const fromName = process.env.SMTP_FROM_NAME || 'Dakota Store & Delivery';
+  const storeName = process.env.STORE_NAME || 'Little Arrows Delivery App';
+  const fromName = process.env.SMTP_FROM_NAME || 'Little Arrows Delivery';
   const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER || 'no-reply@dakotastore.com';
 
   const formattedPurpose = purpose
@@ -219,7 +219,7 @@ export const sendOtpEmail = async (
             ? `<div class="logo-container" align="center"><img src="cid:app_logo" alt="App Logo" class="logo-img" style="max-height: 70px; max-width: 70px; display: block; margin: 0 auto;" /></div>`
             : ''
         }
-        <div class="header-badge">â›½ Convenience Store & Delivery</div>
+        <div class="header-badge">Ã¢â€ºÂ½ Convenience Store & Delivery</div>
         <h1>${storeName}</h1>
         <p>Fast Local Delivery & Mobile Ordering</p>
       </div>
@@ -236,13 +236,13 @@ export const sendOtpEmail = async (
           <div class="otp-label">Verification Code</div>
           <div class="otp-value">${otp}</div>
           <div class="timer-badge">
-            â±ï¸ Expires in 5 minutes
+            Ã¢ÂÂ±Ã¯Â¸Â Expires in 5 minutes
           </div>
         </div>
 
         <!-- Security Callout -->
         <div class="security-note">
-          <strong>ðŸ”’ Security Warning:</strong> Never share this code with anyone. Our staff will never ask for your verification code. If you did not request this, you can safely ignore this email.
+          <strong>Ã°Å¸â€â€™ Security Warning:</strong> Never share this code with anyone. Our staff will never ask for your verification code. If you did not request this, you can safely ignore this email.
         </div>
       </div>
 
@@ -250,7 +250,7 @@ export const sendOtpEmail = async (
       <div class="footer">
         <p>Need help? Contact support or reply directly to this email.</p>
         <p class="subtext">
-          Â© ${new Date().getFullYear()} ${storeName}. All rights reserved.
+          Ã‚Â© ${new Date().getFullYear()} ${storeName}. All rights reserved.
         </p>
       </div>
 
@@ -279,11 +279,12 @@ export const sendOtpEmail = async (
       attachments,
     });
 
-    console.log(`âœ… Real Gmail OTP with Logo successfully sent to: ${toEmail} (MessageId: ${info.messageId})`);
+    console.log(`Ã¢Å“â€¦ Real Gmail OTP with Logo successfully sent to: ${toEmail} (MessageId: ${info.messageId})`);
     return true;
   } catch (error: any) {
-    console.error(`âŒ Gmail SMTP sending error: ${error.message}`);
-    console.log(`ðŸ”‘ Fallback OTP for ${toEmail}: ${otp}`);
+    console.error(`Ã¢ÂÅ’ Gmail SMTP sending error: ${error.message}`);
+    console.log(`Ã°Å¸â€â€˜ Fallback OTP for ${toEmail}: ${otp}`);
     return true;
   }
 };
+
