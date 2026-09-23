@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "employee_food_delivery_backend",
   "version": "1.0.0",
   "description": "Production TypeScript Backend with Socket.io & MongoDB for Gas Station Food & Delivery",
@@ -18,6 +18,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.9.5",
     "morgan": "^1.10.0",
+    "nodemailer": "^10.0.10",
     "pdfkit": "^0.16.0",
     "socket.io": "^4.8.1",
     "zod": "^3.24.1"
@@ -29,6 +30,7 @@
     "@types/jsonwebtoken": "^9.0.7",
     "@types/morgan": "^1.9.9",
     "@types/node": "^22.10.7",
+    "@types/nodemailer": "^8.0.2",
     "@types/pdfkit": "^0.13.8",
     "rimraf": "^6.0.1",
     "tsx": "^4.19.2",

@@ -2,6 +2,10 @@ import { Router } from 'express';
 import {
   login,
   register,
+  sendOtp,
+  verifyOtp,
+  forgotPassword,
+  resetPassword,
   guestCheckout,
   getMe,
   addSavedAddress,
@@ -13,6 +17,10 @@ const router = Router();
 
 router.post('/register', register);
 router.post('/login', login);
+router.post('/send-otp', sendOtp);
+router.post('/verify-otp', verifyOtp);
+router.post('/forgot-password', forgotPassword);
+router.post('/reset-password', resetPassword);
 router.post('/guest-checkout', guestCheckout);
 router.get('/me', authenticate, getMe);
 router.post('/address', authenticate, addSavedAddress);
