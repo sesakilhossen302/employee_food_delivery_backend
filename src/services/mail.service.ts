@@ -1,5 +1,11 @@
+import dotenv from 'dotenv';
+dotenv.config();
 import nodemailer, { Transporter } from 'nodemailer';
-import { ENV } from '../config/env.js';
+import path from 'path';
+import fs from 'fs';
+
+
+
 
 let transporter: Transporter | null = null;
 
@@ -13,17 +19,17 @@ export const getTransporter = (): Transporter => {
     transporter = nodemailer.createTransport({
       host,
       port,
-      secure: port === 465, // true for 465, false for 587
+      secure: port === 465,
       auth: {
         user,
         pass,
       },
       tls: {
-        rejectUnauthorized: false, // Prevents local self-signed cert issues
+        rejectUnauthorized: false,
       },
     });
 
-    console.log(`📧 Gmail SMTP Transporter initialized (${host}:${port}, User: ${user})`);
+    console.log(`ðŸ“§ Gmail SMTP Transporter initialized (${host}:${port}, User: ${user})`);
   }
   return transporter;
 };
@@ -42,7 +48,10 @@ export const sendOtpEmail = async (
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (char) => char.toUpperCase());
 
-  // Premium, Responsive HTML Email Template
+  // Check if logo exists
+  const logoPath = path.resolve(process.cwd(), 'assets/logo.png');
+  const hasLogo = fs.existsSync(logoPath);
+
   const htmlContent = `
 <!DOCTYPE html>
 <html lang="en">
@@ -78,6 +87,23 @@ export const sendOtpEmail = async (
       text-align: center;
       color: #ffffff;
     }
+    .logo-container {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 16px;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      padding: 6px;
+    }
+    .logo-img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
     .header-badge {
       display: inline-block;
       padding: 4px 12px;
@@ -87,7 +113,7 @@ export const sendOtpEmail = async (
       font-weight: 700;
       letter-spacing: 0.5px;
       text-transform: uppercase;
-      margin-bottom: 12px;
+      margin-bottom: 8px;
       color: #7dd3fc;
     }
     .header h1 {
@@ -186,9 +212,14 @@ export const sendOtpEmail = async (
   <div class="wrapper">
     <div class="container">
       
-      <!-- Header -->
+      <!-- Header with App Logo -->
       <div class="header">
-        <div class="header-badge">⛽ Convenience Store & Delivery</div>
+        ${
+          hasLogo
+            ? `<div class="logo-container" align="center"><img src="cid:app_logo" alt="App Logo" class="logo-img" style="max-height: 70px; max-width: 70px; display: block; margin: 0 auto;" /></div>`
+            : ''
+        }
+        <div class="header-badge">â›½ Convenience Store & Delivery</div>
         <h1>${storeName}</h1>
         <p>Fast Local Delivery & Mobile Ordering</p>
       </div>
@@ -205,13 +236,13 @@ export const sendOtpEmail = async (
           <div class="otp-label">Verification Code</div>
           <div class="otp-value">${otp}</div>
           <div class="timer-badge">
-            ⏱️ Expires in 5 minutes
+            â±ï¸ Expires in 5 minutes
           </div>
         </div>
 
         <!-- Security Callout -->
         <div class="security-note">
-          <strong>🔒 Security Warning:</strong> Never share this code with anyone. Our staff will never ask for your verification code. If you did not request this, you can safely ignore this email.
+          <strong>ðŸ”’ Security Warning:</strong> Never share this code with anyone. Our staff will never ask for your verification code. If you did not request this, you can safely ignore this email.
         </div>
       </div>
 
@@ -219,7 +250,7 @@ export const sendOtpEmail = async (
       <div class="footer">
         <p>Need help? Contact support or reply directly to this email.</p>
         <p class="subtext">
-          © ${new Date().getFullYear()} ${storeName}. All rights reserved.
+          Â© ${new Date().getFullYear()} ${storeName}. All rights reserved.
         </p>
       </div>
 
@@ -229,6 +260,15 @@ export const sendOtpEmail = async (
 </html>
   `;
 
+  const attachments: any[] = [];
+  if (hasLogo) {
+    attachments.push({
+      filename: 'logo.png',
+      path: logoPath,
+      cid: 'app_logo',
+    });
+  }
+
   try {
     const info = await mailer.sendMail({
       from: `"${fromName}" <${fromEmail}>`,
@@ -236,14 +276,14 @@ export const sendOtpEmail = async (
       subject: `${otp} is your ${storeName} verification code`,
       html: htmlContent,
       text: `Your ${storeName} verification code is: ${otp}. It will expire in 5 minutes.`,
+      attachments,
     });
 
-    console.log(`✅ Real Gmail OTP successfully sent to: ${toEmail} (MessageId: ${info.messageId})`);
+    console.log(`âœ… Real Gmail OTP with Logo successfully sent to: ${toEmail} (MessageId: ${info.messageId})`);
     return true;
   } catch (error: any) {
-    console.error(`❌ Gmail SMTP sending error: ${error.message}`);
-    // Log clearly to console so developer can always test
-    console.log(`🔑 Fallback OTP for ${toEmail}: ${otp}`);
+    console.error(`âŒ Gmail SMTP sending error: ${error.message}`);
+    console.log(`ðŸ”‘ Fallback OTP for ${toEmail}: ${otp}`);
     return true;
   }
 };
