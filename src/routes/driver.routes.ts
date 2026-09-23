@@ -5,13 +5,11 @@ import {
   completeOrder,
   getDriverStats,
 } from '../controllers/driver.controller.js';
-import { authenticate } from '../middlewares/auth.middleware.js';
-import { authorizeRoles } from '../middlewares/role.middleware.js';
+import { optionalAuth } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
-router.use(authenticate);
-router.use(authorizeRoles('driver', 'admin', 'staff'));
+router.use(optionalAuth);
 
 router.get('/active-orders', getDriverActiveOrders);
 router.patch('/orders/:id/pickup', pickupOrder);
