@@ -32,6 +32,8 @@ export interface IOrder extends Document {
     email?: string;
     deliveryAddress: string;
     deliveryInstructions?: string;
+    lat?: number;
+    lng?: number;
     distanceKm?: number;
   };
   fulfillmentType: 'delivery' | 'pickup';
@@ -65,6 +67,8 @@ const OrderSchema = new Schema<IOrder>(
       email: { type: String },
       deliveryAddress: { type: String, required: true },
       deliveryInstructions: { type: String, default: '' },
+      lat: { type: Number },
+      lng: { type: Number },
       distanceKm: { type: Number, default: 0 },
     },
     fulfillmentType: { type: String, enum: ['delivery', 'pickup'], default: 'delivery' },

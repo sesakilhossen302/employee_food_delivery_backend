@@ -25,18 +25,33 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const query = phone ? { phone } : { email: email?.toLowerCase() };
-    const existing = await User.findOne(query);
-    if (existing) {
-      res.status(400).json({ success: false, message: 'Account already registered with this identifier' });
-      return;
+    const cleanEmail = email ? email.toString().toLowerCase().trim() : undefined;
+    const cleanPhone = phone ? phone.toString().trim() : undefined;
+
+    // Check if user already exists by email or phone
+    const orConditions: any[] = [];
+    if (cleanEmail) orConditions.push({ email: cleanEmail });
+    if (cleanPhone) orConditions.push({ phone: cleanPhone });
+
+    if (orConditions.length > 0) {
+      const existing = await User.findOne({ $or: orConditions });
+      if (existing) {
+        if (cleanEmail && existing.email === cleanEmail) {
+          res.status(400).json({ success: false, message: 'An account is already registered with this email address' });
+          return;
+        }
+        if (cleanPhone && existing.phone === cleanPhone) {
+          res.status(400).json({ success: false, message: 'An account is already registered with this phone number' });
+          return;
+        }
+      }
     }
 
-    const hashedPassword = password ? await bcrypt.hash(password, 10) : undefined;
+    const hashedPassword = password ? await bcrypt.hash(password.toString().trim(), 10) : undefined;
     const user = await User.create({
-      name,
-      phone: phone || `+1${Date.now().toString().slice(-9)}`,
-      email: email?.toLowerCase(),
+      name: name.toString().trim(),
+      phone: cleanPhone || `+1${Date.now().toString().slice(-9)}`,
+      email: cleanEmail,
       password: hashedPassword,
       role: role || 'customer',
       isGuest: false,
@@ -46,6 +61,8 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     res.status(201).json({
       success: true,
       message: 'Account created successfully',
+      token,
+      user,
       data: {
         id: user._id,
         user,
@@ -153,19 +170,27 @@ export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const record = await Otp.findOne({
+    // Build query. If purpose is not provided, allow any purpose.
+    const query: any = {
       email: email.toLowerCase(),
       otp: otp.toString().trim(),
-      purpose: purpose || 'login',
       expiresAt: { $gt: new Date() },
-    });
+    };
+    if (purpose) {
+      query.purpose = purpose;
+    }
+
+    const record = await Otp.findOne(query);
 
     if (!record) {
       res.status(400).json({ success: false, message: 'Invalid or expired OTP' });
       return;
     }
 
-    await Otp.deleteOne({ _id: record._id });
+    // Only delete the OTP if the purpose is login. If it's forgot_password, keep it for resetPassword to verify
+    if (record.purpose !== 'forgot_password') {
+       await Otp.deleteOne({ _id: record._id });
+    }
 
     let user = await User.findOne({ email: email.toLowerCase() });
     let token = '';

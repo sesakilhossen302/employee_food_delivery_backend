@@ -16,6 +16,8 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       deliveryAddress: customer?.deliveryAddress || customer?.address || (fulfillmentType === 'pickup' ? 'Store Pickup' : 'Local Address'),
       deliveryInstructions: customer?.deliveryInstructions || customer?.instructions || '',
       distanceKm: customer?.distanceKm || 3,
+      lat: customer?.lat,
+      lng: customer?.lng,
     };
 
     const normalizedItems = await Promise.all(
@@ -79,6 +81,8 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
     const io = (req as any).io;
     if (io) {
       io.emit('new_order', order);
+      // Broadcast to all drivers
+      io.emit('new_order_available', order);
       io.emit('notification', {
         title: 'Order Placed Successfully',
         message: `Order ${orderNumber} placed for $${total}.`,
@@ -276,6 +280,45 @@ export const getOrderTracking = async (req: Request, res: Response): Promise<voi
         },
       },
     });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const acceptOrder = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { driverId, driverName, driverPhone } = req.body;
+
+    const order = await Order.findById(id);
+    if (!order) {
+      res.status(404).json({ success: false, message: 'Order not found' });
+      return;
+    }
+
+    if (order.status !== 'received' && order.status !== 'ready_for_driver' && order.status !== 'preparing') {
+      res.status(400).json({ success: false, message: 'Order is not available for acceptance' });
+      return;
+    }
+
+    order.status = 'ready_for_driver';
+    order.assignedDriver = {
+      id: driverId,
+      name: driverName || 'Driver',
+      phone: driverPhone || '',
+    };
+    await order.save();
+
+    const io = (req as any).io;
+    if (io) {
+      // Notify customer that a driver accepted
+      io.to(`order_${id}`).emit('order_status_updated', order);
+      io.emit('order_status_updated', order);
+      // Remove from available list for other drivers
+      io.emit('order_accepted_by_driver', { orderId: id, driverId });
+    }
+
+    res.json({ success: true, data: order });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
