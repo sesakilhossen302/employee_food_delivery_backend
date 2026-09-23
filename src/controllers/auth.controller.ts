@@ -20,22 +20,23 @@ export const register = async (req: Request, res: Response): Promise<void> => {
   try {
     const { name, phone, email, password, role } = req.body;
 
-    if (!name || !phone) {
-      res.status(400).json({ success: false, message: 'Name and phone are required' });
+    if (!name || (!phone && !email)) {
+      res.status(400).json({ success: false, message: 'Name and either phone or email are required' });
       return;
     }
 
-    const existing = await User.findOne({ phone });
+    const query = phone ? { phone } : { email: email?.toLowerCase() };
+    const existing = await User.findOne(query);
     if (existing) {
-      res.status(400).json({ success: false, message: 'This phone number is already registered' });
+      res.status(400).json({ success: false, message: 'Account already registered with this identifier' });
       return;
     }
 
     const hashedPassword = password ? await bcrypt.hash(password, 10) : undefined;
     const user = await User.create({
       name,
-      phone,
-      email,
+      phone: phone || `+1${Date.now().toString().slice(-9)}`,
+      email: email?.toLowerCase(),
       password: hashedPassword,
       role: role || 'customer',
       isGuest: false,
@@ -45,25 +46,40 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     res.status(201).json({
       success: true,
       message: 'Account created successfully',
-      data: { user, token },
+      data: {
+        id: user._id,
+        user,
+        token,
+        accessToken: token,
+        role: user.role,
+      },
     });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// Phone / Password Login
+// Phone / Email Login (Compatible with Flutter app)
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { phone, password } = req.body;
-    if (!phone) {
-      res.status(400).json({ success: false, message: 'Phone number is required' });
+    const { phone, email, password } = req.body;
+    const identifier = email || phone;
+
+    if (!identifier) {
+      res.status(400).json({ success: false, message: 'Phone number or Email is required' });
       return;
     }
 
-    const user = await User.findOne({ phone });
+    // Search by email or phone
+    const user = await User.findOne({
+      $or: [
+        { email: identifier.toLowerCase() },
+        { phone: identifier }
+      ]
+    });
+
     if (!user) {
-      res.status(401).json({ success: false, message: 'No account found with this phone number' });
+      res.status(401).json({ success: false, message: 'No account found with this credential' });
       return;
     }
 
@@ -79,7 +95,13 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     res.json({
       success: true,
       message: 'Logged in successfully',
-      data: { user, token },
+      data: {
+        id: user._id,
+        user,
+        token,
+        accessToken: token,
+        role: user.role,
+      },
     });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -95,14 +117,11 @@ export const sendOtp = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Generate random 6-digit OTP
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
 
-    // Clear any previous pending OTP for this email & purpose
     await Otp.deleteMany({ email: email.toLowerCase(), purpose: purpose || 'login' });
 
-    // Save new OTP
     await Otp.create({
       email: email.toLowerCase(),
       otp: otpCode,
@@ -110,7 +129,6 @@ export const sendOtp = async (req: Request, res: Response): Promise<void> => {
       expiresAt,
     });
 
-    // Send email via Gmail
     await sendOtpEmail(email, otpCode, purpose || 'Verification');
 
     res.json({
@@ -126,7 +144,7 @@ export const sendOtp = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-// Verify OTP
+// Verify OTP (Compatible with Flutter app)
 export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, otp, purpose } = req.body;
@@ -147,10 +165,8 @@ export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Delete used OTP
     await Otp.deleteOne({ _id: record._id });
 
-    // Check if user exists with this email
     let user = await User.findOne({ email: email.toLowerCase() });
     let token = '';
 
@@ -162,9 +178,12 @@ export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
       success: true,
       message: 'OTP verified successfully',
       data: {
+        id: user?._id,
         isUserRegistered: !!user,
         user,
         token,
+        accessToken: token,
+        role: user?.role || 'customer',
       },
     });
   } catch (error: any) {
@@ -249,22 +268,22 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
   }
 };
 
-// Guest Checkout (Dakota Spec requirement)
+// Guest Checkout
 export const guestCheckout = async (req: Request, res: Response): Promise<void> => {
   try {
     const { name, phone, email, deliveryAddress, deliveryInstructions } = req.body;
 
-    if (!name || !phone) {
-      res.status(400).json({ success: false, message: 'Name and phone are required for guest checkout' });
+    if (!name || (!phone && !email)) {
+      res.status(400).json({ success: false, message: 'Name and contact info are required' });
       return;
     }
 
-    let user = await User.findOne({ phone });
+    let user = await User.findOne({ $or: [{ phone }, { email: email?.toLowerCase() }] });
     if (!user) {
       user = await User.create({
         name,
-        phone,
-        email,
+        phone: phone || `+1${Date.now().toString().slice(-9)}`,
+        email: email?.toLowerCase(),
         role: 'customer',
         isGuest: true,
         savedAddresses: deliveryAddress
@@ -277,7 +296,13 @@ export const guestCheckout = async (req: Request, res: Response): Promise<void> 
     res.json({
       success: true,
       message: 'Guest checkout session initiated',
-      data: { user, token },
+      data: {
+        id: user._id,
+        user,
+        token,
+        accessToken: token,
+        role: user.role,
+      },
     });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
