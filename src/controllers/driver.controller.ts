@@ -7,15 +7,29 @@ import { User } from '../models/User.model.js';
 export const getDriverActiveOrders = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const driverId = req.user?.id;
+    const unassignedStatuses = ['received', 'order_placed', 'confirmed', 'preparing', 'ready_for_driver'];
+    const activeStatuses = ['ready_for_driver', 'out_for_delivery', 'picking_up'];
+
     let query: any = {
-      status: { $in: ['ready_for_driver', 'out_for_delivery', 'confirmed', 'preparing', 'order_placed'] },
+      fulfillmentType: { $ne: 'pickup' },
+      status: { $in: [...unassignedStatuses, 'out_for_delivery'] },
     };
 
     if (driverId) {
       query = {
+        fulfillmentType: { $ne: 'pickup' },
         $or: [
-          { 'assignedDriver.id': driverId, status: { $in: ['ready_for_driver', 'out_for_delivery'] } },
-          { status: { $in: ['ready_for_driver', 'confirmed', 'preparing', 'order_placed'] } },
+          { 'assignedDriver.id': driverId, status: { $in: activeStatuses } },
+          {
+            status: { $in: unassignedStatuses },
+            $or: [
+              { assignedDriver: { $exists: false } },
+              { assignedDriver: null },
+              { 'assignedDriver.id': { $exists: false } },
+              { 'assignedDriver.id': null },
+              { 'assignedDriver.id': driverId },
+            ],
+          },
         ],
       };
     }
