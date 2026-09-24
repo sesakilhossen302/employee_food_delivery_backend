@@ -243,23 +243,19 @@ export const getOrderTracking = async (req: Request, res: Response): Promise<voi
                       latestDriverLocations.get(order.orderNumber) ||
                       (order.assignedDriver?.id ? latestDriverLocations.get(order.assignedDriver.id.toString()) : null);
 
-    const storeLocation = {
-      name: 'Little Arrows Delivery Store',
-      lat: 46.8772,
-      lng: -96.7898,
-      address: 'Little Arrows Delivery Store, 1250 Highway Blvd',
-    };
+    const custLat = order.customer?.lat ?? (order.customer as any)?.latitude;
+    const custLng = order.customer?.lng ?? (order.customer as any)?.longitude;
 
     const customerLocation = {
       name: order.customer?.name || 'Customer',
-      address: order.customer?.deliveryAddress || 'Springfield Residential Area',
-      lat: 46.8920,
-      lng: -96.8050,
+      address: order.customer?.deliveryAddress || 'Delivery Address',
+      lat: (typeof custLat === 'number' && !isNaN(custLat)) ? custLat : 23.8103,
+      lng: (typeof custLng === 'number' && !isNaN(custLng)) ? custLng : 90.4125,
     };
 
     const driverLocation = cachedLoc || {
-      lat: order.status === 'delivered' ? customerLocation.lat : 46.8820,
-      lng: order.status === 'delivered' ? customerLocation.lng : -96.7940,
+      lat: order.status === 'delivered' ? customerLocation.lat : (customerLocation.lat - 0.006),
+      lng: order.status === 'delivered' ? customerLocation.lng : (customerLocation.lng - 0.006),
       heading: 45,
       timestamp: Date.now(),
     };
@@ -271,7 +267,6 @@ export const getOrderTracking = async (req: Request, res: Response): Promise<voi
         orderNumber: order.orderNumber,
         status: order.status,
         fulfillmentType: order.fulfillmentType,
-        storeLocation,
         customerLocation,
         driverLocation,
         driver: order.assignedDriver || {
