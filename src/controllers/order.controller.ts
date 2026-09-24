@@ -265,9 +265,14 @@ export const getOrderTracking = async (req: Request, res: Response): Promise<voi
         heading: 45,
         timestamp: Date.now(),
       };
-      driver = order.assignedDriver || {
-        name: 'Delivery Driver',
-        phone: '+1 (555) 019-2834',
+      const assigned = (order.assignedDriver && order.assignedDriver.name) ? order.assignedDriver : null;
+      driver = assigned || {
+        id: 'driver_001',
+        name: 'Rahim Ahmed (Delivery Partner)',
+        phone: '+880 1712-345678',
+        vehicle: 'Yamaha FZ (Dhaka Metro-HA 21-4567)',
+        vehicleType: 'Delivery Motorcycle',
+        rating: 4.9,
       };
     }
 
