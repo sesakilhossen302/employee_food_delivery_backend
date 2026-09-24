@@ -112,14 +112,19 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
 export const updateOrderStatus = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, assignedDriver } = req.body;
+
+    const updateFields: any = {
+      status,
+      ...(status === 'delivered' ? { paymentStatus: 'paid' } : {}),
+    };
+    if (assignedDriver && typeof assignedDriver === 'object') {
+      updateFields.assignedDriver = assignedDriver;
+    }
 
     const order = await Order.findByIdAndUpdate(
       id,
-      {
-        status,
-        ...(status === 'delivered' ? { paymentStatus: 'paid' } : {}),
-      },
+      updateFields,
       { new: true }
     );
 
