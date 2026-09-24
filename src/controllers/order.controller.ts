@@ -253,12 +253,23 @@ export const getOrderTracking = async (req: Request, res: Response): Promise<voi
       lng: (typeof custLng === 'number' && !isNaN(custLng)) ? custLng : 90.4125,
     };
 
-    const driverLocation = cachedLoc || {
-      lat: order.status === 'delivered' ? customerLocation.lat : (customerLocation.lat - 0.006),
-      lng: order.status === 'delivered' ? customerLocation.lng : (customerLocation.lng - 0.006),
-      heading: 45,
-      timestamp: Date.now(),
-    };
+    const hasDriver = !!(order.assignedDriver?.name || order.assignedDriver?.id || order.status === 'out_for_delivery' || order.status === 'ready_for_driver');
+
+    let driverLocation = null;
+    let driver = null;
+
+    if (hasDriver) {
+      driverLocation = cachedLoc || {
+        lat: order.status === 'delivered' ? customerLocation.lat : (customerLocation.lat - 0.006),
+        lng: order.status === 'delivered' ? customerLocation.lng : (customerLocation.lng - 0.006),
+        heading: 45,
+        timestamp: Date.now(),
+      };
+      driver = order.assignedDriver || {
+        name: 'Delivery Driver',
+        phone: '+1 (555) 019-2834',
+      };
+    }
 
     res.json({
       success: true,
@@ -269,10 +280,8 @@ export const getOrderTracking = async (req: Request, res: Response): Promise<voi
         fulfillmentType: order.fulfillmentType,
         customerLocation,
         driverLocation,
-        driver: order.assignedDriver || {
-          name: 'Delivery Driver',
-          phone: '+1 (555) 019-2834',
-        },
+        driver,
+        hasDriverAssigned: hasDriver,
       },
     });
   } catch (error: any) {
