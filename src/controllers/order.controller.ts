@@ -1,4 +1,5 @@
 ﻿import { Request, Response } from 'express';
+import { AuthRequest } from '../middlewares/auth.middleware.js';
 import { Order } from '../models/Order.model.js';
 import { Product } from '../models/Product.model.js';
 import { Notification } from '../models/Notification.model.js';
@@ -9,10 +10,17 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
   try {
     const { customer, fulfillmentType, items, tip, paymentMethod } = req.body;
 
+    const authUser = (req as AuthRequest).user;
+    const customerId = authUser?.id || customer?.id;
+    const customerEmail = (customer?.email || (authUser as any)?.email)?.toString().toLowerCase().trim();
+    const customerPhone = (customer?.phone || authUser?.phone)?.toString().trim();
+    const customerName = (customer?.name || (authUser as any)?.name || 'Customer').toString().trim();
+
     const normalizedCustomer = {
-      name: customer?.name || 'Customer',
-      phone: customer?.phone || '+1 (555) 000-0000',
-      email: customer?.email,
+      id: customerId,
+      name: customerName,
+      phone: customerPhone || '+1 (555) 000-0000',
+      email: customerEmail,
       deliveryAddress: customer?.deliveryAddress || customer?.address || (fulfillmentType === 'pickup' ? 'Store Pickup' : 'Local Address'),
       deliveryInstructions: customer?.deliveryInstructions || customer?.instructions || '',
       distanceKm: customer?.distanceKm || 3,
@@ -65,14 +73,17 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       status: 'received',
     });
 
-    // Create persistent notification
+    // Create persistent notification tied to this user
     try {
-      await Notification.create({
-        title: 'Order Placed Successfully',
-        message: `Order ${orderNumber} ($${total}) is received by Little Arrows Store.`,
-        category: 'order',
-        orderId: order._id,
-      });
+      if (customerId) {
+        await Notification.create({
+          userId: customerId,
+          title: 'Order Placed Successfully',
+          message: `Order ${orderNumber} (${total}) is received by Little Arrows Store.`,
+          category: 'order',
+          orderId: order._id,
+        });
+      }
     } catch (e) {
       console.warn('Notification create warning:', e);
     }
@@ -97,10 +108,32 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
 
 export const getOrders = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { status, customerPhone } = req.query;
+    const { status, customerPhone, all } = req.query;
+    const authUser = (req as AuthRequest).user;
     const filter: any = {};
+
     if (status) filter.status = status;
     if (customerPhone) filter['customer.phone'] = customerPhone;
+
+    // If caller is an authenticated customer/employee (not admin, and not explicitly requesting all=true)
+    if (authUser && authUser.role !== 'admin' && all !== 'true') {
+      const orConditions: any[] = [];
+      if (authUser.id) {
+        orConditions.push({ 'customer.id': authUser.id });
+      }
+      if ((authUser as any).email) {
+        orConditions.push({ 'customer.email': (authUser as any).email.toLowerCase().trim() });
+      }
+      if (authUser.phone) {
+        orConditions.push({ 'customer.phone': authUser.phone.trim() });
+      }
+
+      if (orConditions.length > 0) {
+        filter.$or = orConditions;
+      } else {
+        filter['customer.id'] = authUser.id;
+      }
+    }
 
     const orders = await Order.find(filter).sort({ createdAt: -1 });
     res.json({ success: true, data: orders });
@@ -113,13 +146,24 @@ export const updateOrderStatus = async (req: Request, res: Response): Promise<vo
   try {
     const { id } = req.params;
     const { status, assignedDriver } = req.body;
+    const authUser = (req as AuthRequest).user;
+    const driverId = authUser?.id || assignedDriver?.id;
 
     const updateFields: any = {
       status,
       ...(status === 'delivered' ? { paymentStatus: 'paid' } : {}),
     };
     if (assignedDriver && typeof assignedDriver === 'object') {
-      updateFields.assignedDriver = assignedDriver;
+      updateFields.assignedDriver = {
+        ...assignedDriver,
+        ...(driverId ? { id: driverId } : {}),
+      };
+    } else if (driverId && authUser?.role === 'driver') {
+      updateFields.assignedDriver = {
+        id: driverId,
+        name: (authUser as any).name || 'Delivery Driver',
+        phone: authUser.phone || '',
+      };
     }
 
     const order = await Order.findByIdAndUpdate(
@@ -133,10 +177,11 @@ export const updateOrderStatus = async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    // Persistent notification for status update
+    // Persistent notification for status update tied to the order customer
     try {
       const statusTitle = status === 'delivered' ? 'Order Delivered 🎉' : `Order ${status.replace(/_/g, ' ')}`;
       await Notification.create({
+        userId: order.customer?.id,
         title: statusTitle,
         message: `Order ${order.orderNumber} is now ${status.replace(/_/g, ' ')}.`,
         category: status === 'out_for_delivery' ? 'delivery' : 'order',

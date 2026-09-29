@@ -8,8 +8,12 @@ import {
   getOrderPackingSlipPDF,
   getOrderTracking,
 } from '../controllers/order.controller.js';
+import { optionalAuth } from '../middlewares/auth.middleware.js';
 
 const router = Router();
+
+router.use(optionalAuth);
+
 router.post('/', createOrder);
 router.get('/', getOrders);
 router.patch('/:id/status', updateOrderStatus);

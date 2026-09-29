@@ -10,16 +10,14 @@ export const getDriverActiveOrders = async (req: AuthRequest, res: Response): Pr
     const unassignedStatuses = ['received', 'order_placed', 'confirmed', 'preparing', 'ready_for_driver'];
     const activeStatuses = ['ready_for_driver', 'out_for_delivery', 'picking_up'];
 
-    let query: any = {
-      fulfillmentType: { $ne: 'pickup' },
-      status: { $in: [...unassignedStatuses, 'out_for_delivery'] },
-    };
-
+    let query: any;
     if (driverId) {
       query = {
         fulfillmentType: { $ne: 'pickup' },
         $or: [
+          // 1. Orders currently accepted and active for THIS SPECIFIC driver
           { 'assignedDriver.id': driverId, status: { $in: activeStatuses } },
+          // 2. Orders ready for pickup not yet assigned to any driver
           {
             status: { $in: unassignedStatuses },
             $or: [
@@ -27,9 +25,19 @@ export const getDriverActiveOrders = async (req: AuthRequest, res: Response): Pr
               { assignedDriver: null },
               { 'assignedDriver.id': { $exists: false } },
               { 'assignedDriver.id': null },
-              { 'assignedDriver.id': driverId },
             ],
           },
+        ],
+      };
+    } else {
+      query = {
+        fulfillmentType: { $ne: 'pickup' },
+        status: { $in: unassignedStatuses },
+        $or: [
+          { assignedDriver: { $exists: false } },
+          { assignedDriver: null },
+          { 'assignedDriver.id': { $exists: false } },
+          { 'assignedDriver.id': null },
         ],
       };
     }
@@ -82,9 +90,23 @@ export const pickupOrder = async (req: AuthRequest, res: Response): Promise<void
 export const completeOrder = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+    const driverId = req.user?.id;
+    const updateData: any = { status: 'delivered', paymentStatus: 'paid' };
+
+    if (driverId) {
+      const driver = await User.findById(driverId);
+      if (driver) {
+        updateData.assignedDriver = {
+          id: driver._id,
+          name: driver.name,
+          phone: driver.phone,
+        };
+      }
+    }
+
     const order = await Order.findByIdAndUpdate(
       id,
-      { status: 'delivered', paymentStatus: 'paid' },
+      updateData,
       { new: true }
     );
 
@@ -112,17 +134,28 @@ export const completeOrder = async (req: AuthRequest, res: Response): Promise<vo
   }
 };
 
-// Driver Earnings & Delivery Stats
+// Driver Earnings & Delivery Stats - ONLY for the logged in driver
 export const getDriverStats = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const driverId = req.user?.id;
-    const driver = driverId ? await User.findById(driverId) : null;
+    if (!driverId) {
+      res.json({
+        success: true,
+        data: {
+          completedDeliveries: 0,
+          totalCashCollected: 0,
+          totalTips: 0,
+          totalEarnings: 0,
+        },
+      });
+      return;
+    }
 
-    const query: any = driverId
-      ? { 'assignedDriver.id': driverId, status: 'delivered' }
-      : { status: 'delivered' };
-
-    const completedOrders = await Order.find(query);
+    const driver = await User.findById(driverId);
+    const completedOrders = await Order.find({
+      'assignedDriver.id': driverId,
+      status: 'delivered',
+    });
 
     const totalCashCollected = completedOrders.reduce((sum, o) => sum + (o.total || 0), 0);
     const totalTips = completedOrders.reduce((sum, o) => sum + (o.tip || 0), 0);

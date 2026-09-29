@@ -1,4 +1,4 @@
-﻿import { Request, Response } from 'express';
+import { Request, Response } from 'express';
 import { Notification } from '../models/Notification.model.js';
 import { AuthRequest } from '../middlewares/auth.middleware.js';
 
@@ -6,8 +6,15 @@ export const getNotifications = async (req: AuthRequest, res: Response): Promise
   try {
     const userId = req.user?.id;
     const filter: any = {};
+
     if (userId) {
-      filter.$or = [{ userId }, { userId: null }, { userId: { $exists: false } }];
+      // User only sees their own order/account notifications OR general system announcements
+      filter.$or = [
+        { userId },
+        { category: { $in: ['system', 'promo'] } }
+      ];
+    } else {
+      filter.category = { $in: ['system', 'promo'] };
     }
 
     let notifications = await Notification.find(filter).sort({ createdAt: -1 }).limit(50);
